@@ -1,0 +1,11 @@
+<script type="text/javascript">
+	window.console.stdlog = window.console.log.bind(window.console);
+	window.console.logs = [];
+	window.console.log = function(){
+    	window.console.logs.push(Array.from(arguments));
+    	window.console.stdlog.apply(window.console, arguments);
+	}
+</script>
+
+<iframe src="https://babylonstk.evo-games.com/frontend/evo/r2/#game=blackjack&EVOSESSIONID=pjxrcdnfema4ewsfpkqewf6lb5hbauij0003e3cdd93f3ea03b50529b1813848d3f777937c316ee54&cdn=https%3A%2F%2Fstatic.egcdn.com&lang=fr" style="width: 1132px; height: 637px;"></iframe>
+

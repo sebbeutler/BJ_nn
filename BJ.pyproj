@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>8e9bcc8b-6088-4ffc-bdce-78b48c8035f7</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>detection\gen_dataset.py</StartupFile>
+    <StartupFile>api.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,11 +22,18 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="api.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="BlackJack.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="detection\gen_dataset.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="main.py" />
     <Compile Include="ocr.py" />
+    <Compile Include="script.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="Global|PythonCore|3.9" />
@@ -38,12 +45,20 @@
     <Folder Include="detection\training_set\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="blackjack.js">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="detection\card_set\8Ca.png" />
     <Content Include="detection\card_set\QT.png" />
     <Content Include="detection\nn.cfg" />
     <Content Include="detection\nn.data" />
     <Content Include="detection\nn.names" />
+    <Content Include="detection\nn_new.names">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="detection\training_set\train.txt" />
+    <Content Include="inject_listener.js" />
+    <Content Include="TODO.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

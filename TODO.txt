@@ -1,0 +1,7 @@
+- Take ss of all cards
+- add false negative
+- add table bg
+- add resversed cards
+- do convex hull
+- generate dataset
+- train from yolo

@@ -1,4 +1,3 @@
-# Import required packages
 import cv2
 import pytesseract
 import numpy as np
@@ -6,27 +5,34 @@ import numpy as np
 # 1303, 692
 # [[655, 580], [1349, 568], [135, 933], [1825, 916], [410, 182]]
 
-#points = []
-#cv2.setMouseCallback("img", perspective, [img])
+points = []
 def perspective(event, x, y, flags, param):
     if (event == cv2.EVENT_LBUTTONUP):
         cv2.circle(param[0], (x,y), 5, (0,255,0), -1)
         points.append([x,y])
         if len(points) == 4:
-            matrix = cv2.getPerspectiveTransform(np.float32(points), np.float32([[0,0], [835,0], [0, 313], [835, 313]]))
-            cv2.imshow("img", cv2.warpPerspective(param[0], matrix, (1303, 692)))
+            matrix = cv2.getPerspectiveTransform(np.float32(points), np.float32([[0,0], [608,0], [0, 608], [608, 608]]))
+            cv2.imshow("img", cv2.warpPerspective(param[0], matrix, (608, 608)))
             cv2.waitKey(0)
             print(points)
             points.clear()
-
+            
 
 
 # read the image to be processed
-img = cv2.imread("full.png")
+img = cv2.imread("test2.jpg")
+#cv2.imshow("img", img)
 
+#cv2.setMouseCallback("img", perspective, [img])
 # apply perspective transformation to get a top view of the cards (from a 1920x1080 ss only)
-matrix = cv2.getPerspectiveTransform(np.float32([[655, 580], [1350, 580], [135, 1000], [1860, 1000]]), np.float32([[0,0], [440,0], [0, 410], [440, 410]]))
-img = cv2.warpPerspective(img, matrix, (440, 410))
+shift = [0.1,-0.1, -0.1, -0.1]
+matrix = cv2.getPerspectiveTransform(np.float32([
+    [shift[0]*img.shape[1], 0], 
+    [img.shape[1]+shift[1]*img.shape[1], 0],     
+    [0, shift[2]*img.shape[0]+img.shape[0]],
+    [img.shape[1], shift[3]*img.shape[0]+img.shape[0]]]), 
+    np.float32([[0,0], [608,0], [0, 608], [608, 608]]))
+img = cv2.warpPerspective(img, matrix, (608, 608))
 
 img_gray = img.copy()
 
@@ -50,7 +56,9 @@ for contour in contours:
 
 result = cv2.bitwise_and(img, mask)
 
-cv2.imshow("res", result)
+#cv2.imshow("img", result)
+cv2.imwrite("res.jpg", result)
+
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()

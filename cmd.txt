@@ -1,0 +1,3 @@
+cd C:/D/Desktop/projects/darknet-master
+.\darknet.exe detector train C:/D/Desktop/projects/BJ/detection/nn.data C:/D/Desktop/projects/BJ/detection/nn.cfg yolov4-tiny.conv.29
+.\darknet.exe detector test C:/D/Desktop/projects/BJ/detection/nn.data C:/D/Desktop/projects/BJ/detection/nn.cfg C:/D/Desktop/projects/BJ/detection/backup/
