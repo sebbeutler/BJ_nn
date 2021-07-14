@@ -1,4 +1,5 @@
 // document.querySelector("#root > div > div > div > div:nth-child(7) > div.top-left--jiLTk > div > div > div > div.header--3V5d-").textContent = "Count"
+
 TotalCount = 0;
 CardsOnTable = [];
 
@@ -40,13 +41,12 @@ pulse = function (arg) {
         }
 
         // Players
-        for (const [k, player] of Object.entries(payloadData.seats)) {
+        for (const [k, player] of Object.entries(payload.seats)) {
             for (const card of player.first.cards) {
                 CardsOnTable.push(card.value)
             }
         }
-
-        console.stdlog(console, ["TotalCount:", TotalCount + countCards(CardsOnTable)])
+        document.querySelector("#root > div > div > div > div:nth-child(7) > div.top-left--jiLTk > div > div > div > div.header--3V5d-").textContent = "RC: " + (TotalCount + countCards(CardsOnTable));
     }
 }
 
@@ -57,4 +57,3 @@ console.log = function () {
     console.stdlog.apply(console, arguments);
     pulse(Array.from(arguments));
 }
-
