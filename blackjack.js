@@ -57,3 +57,7 @@ console.log = function () {
     console.stdlog.apply(console, arguments);
     pulse(Array.from(arguments));
 }
+
+var intervalId = window.setInterval(function () {
+    document.querySelector("#root > div > div > div > div.wrapper--2LGax > div.clickable--3IFrf").click();
+}, 5000);
