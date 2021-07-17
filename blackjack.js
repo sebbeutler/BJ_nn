@@ -1,4 +1,5 @@
 // document.querySelector("#root > div > div > div > div:nth-child(7) > div.top-left--jiLTk > div > div > div > div.header--3V5d-").textContent = "Count"
+// fetch("https://raw.githubusercontent.com/subski/BJ_nn/master/blackjack.js").then(response => response.text()).then(text => eval(text))
 
 TotalCount = 0;
 CardsOnTable = [];
