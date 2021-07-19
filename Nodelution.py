@@ -1,18 +1,39 @@
 import numpy as np
 from random import random, choice
 from enum import Enum
+from datetime import datetime
+
+# TODO: 
+# - Implement functions: (find: raise)
+# - Implement tests for functions
 
 class NodeType(Enum):
+    """A type is attributed to each node for easier filtering and to differentiate hidden nodes later.
+    """
     Input = 1
     Output = 2
     Hidden = 4
 
 class Node:
+    """Represent a single Node of a network.
+
+    Attributes:
+        id: Unique identifier (int).
+        type: cf. Nodetype.
+        inputs: Collection of all the parent nodes and the weight of their link to this node.
+                Form: {node_id: weight_value, ...}
+        disabled: List of existing links that are toggled off (wont be processed on evaluation of the agent).
+        fn: Activation function.
+    
+    Methodes:
+        __getitem__, __setitem__, __len__: Shortcut to self.inputs.
+                                           Node[i] / len(Node) will act like Node.inputs[i] / len(Node.inputs).
+    """
     def __init__(self, id=0, type=NodeType.Hidden, inputs={}, fn=lambda x: x):
-        self.id = id
-        self.type = type
-        self.inputs = inputs
-        self.disabled = []
+        self.id = id # type: int
+        self.type = type # type: NodeType
+        self.inputs = inputs # type: dict[int, float] # node_id: weight_value
+        self.disabled = [] # type: list[int]
         self.fn = fn
         
     def __getitem__(self, key):
@@ -25,8 +46,19 @@ class Node:
         return len(self.inputs)
 
 class Agent:
+    """Represent an individual of the population.
+    
+
+    Attributes:
+        nodes: Collection of the Nodes forming the network.
+            For easier usage, use Agent.addNode(Node) to add a Node to the agent.
+            Form: {node_id: Node, ...}
+    
+    Methods:
+        addNode: Add a node to the nodes collection and use the node.id as index for the dictionnary.
+    """
     def __init__(self):
-        self.nodes = {}
+        self.nodes = {} # type: dict[int, Node]
         
     def addNode(self, node):
         self.nodes[node.id] = node
@@ -39,12 +71,12 @@ class Agent:
         
 
 class Nodelution:
-    def __init__(self):
-        self.Agents = [] # List of Agent
+    def __init__(self, settings):
+        self.agents = [] # type: list[Agent]
         self.test = None
-        self.InputList = [1,2,3]
-        self.OutpuList = [4,5]
-        self.NodeCount = 5
+        self.inputList = [i for i in range(1, settings["Input"]+1)] # type: list[int]
+        self.outputList = [i for i in range(len(self.inputList)+1, len(self.inputList)+1+settings["Output"])] # type: list[int]
+        self.nodeCount = len(self.inputList) + len(self.outputList) # type: int
 
     def setup(self):
         agent = Agent()
@@ -58,7 +90,18 @@ class Nodelution:
         
         self.test = agent
     
-    def getNodeWithLinks(self, agent, disabled=True):
+    # FIXME: Possible infinite loop stuck, could use some optimization as well. 
+    def getNodeWithLinks(self, agent, disabled=True) -> Node:
+        """Fetch randomly a node in an agent that has 1 or more links.
+        If the disabled flag is set to True, the node has to have active links (not all disabled).
+
+        Args:
+            agent (Agent): Agent to select the node from.
+            disabled (bool, optional): If True the node selected has to have at least 1 link enabled. Defaults to True.
+
+        Returns:
+            Node: The randomly selected node
+        """
         while True:
             node = choice(list(agent.nodes.values()))
             if len(node.inputs) > 0:
@@ -68,36 +111,39 @@ class Nodelution:
                 break
         return node
     
-    def mutateLinkAdd(self, agent, percent=1):
+    def mutateLinkAdd(self, agent, percent=1) -> None:
         if random() > percent:
             return
         
-        node_id = choice([id for id in agent.nodes.keys() if id not in self.InputList])
-        if len(agent.nodes[node_id]) >= len(agent.nodes.keys())-1:
+        node_id = choice([id for id in agent.nodes if id not in self.InputList])
+        if len(agent.nodes[node_id]) >= len(agent.nodes)-1:
             print("Can't add a link here mate.")
             return
         
-        target_link = choice([id for id in agent.nodes.keys() if id not in list(agent.nodes[node_id].inputs.keys()) + [node_id]])
+        # All nodes except inputs and the node that own the links
+        target_nodes = [id for id in agent.nodes if id not in list(agent.nodes[node_id].inputs) + [node_id]]
+
+        target_link = choice(target_nodes)
         
         agent.nodes[node_id][target_link] = 1.0
     
-    def mutateLinkShift(self, agent, percent=1, shift=0.2):        
+    def mutateLinkShift(self, agent, percent=1, shift=0.2) -> None:        
         if random() > percent:
             return
         
         node = self.getNodeWithLinks(agent, False)
         
-        node[choice(list(node.inputs.keys()))] += random()*shift*2 -shift
+        node[choice(list(node.inputs))] += random()*shift*2 -shift
         
-    def mutateLinkRandom(self, agent, percent=1):        
+    def mutateLinkRandom(self, agent, percent=1) -> None:        
         if random() > percent:
             return
         
         node = self.getNodeWithLinks(agent, False)
         
-        node[choice(list(node.inputs.keys()))] = random()*2 -1
+        node[choice(list(node.inputs))] = random()*2 -1
     
-    def mutateLinkToggle(self, agent, percent=1):           
+    def mutateLinkToggle(self, agent, percent=1) -> None:           
         if random() > percent:
             return
         
@@ -110,13 +156,13 @@ class Nodelution:
         else:
             node.disabled.append(link_id)
     
-    def mutateNodeAdd(self, agent, percent=1):
+    def mutateNodeAdd(self, agent, percent=1) -> None:
         if random() > percent:
             return
         
         node = self.getNodeWithLinks(agent, False)
         
-        enabled_links = [link for link in node.inputs.keys() if link not in node.disabled]
+        enabled_links = [link for link in node.inputs if link not in node.disabled]
         
         link_id = choice(enabled_links)
         node.disabled.append(link_id)
@@ -125,17 +171,67 @@ class Nodelution:
         
         agent.addNode(Node(self.NodeCount, NodeType.Hidden, {link_id : 1}))
         node[self.NodeCount] = node[link_id]
+    
+    def mutateNodeToggle(self, agent, percent=1) -> None:
+        raise Exception("Not implemented func.")
+
+    def distance(self, agent1, agent2) -> float:
+        raise Exception("Not implemented func.")
+
+    def progenerate(self, agent1, agent2) -> Agent:
+        raise Exception("Not implemented func.")
+
+    def evolve(self, max_gen=1):
         
+        self.initializePopulation()
+        self.scoreFitness()
+        
+        for i in range(1, max_gen+1):
+            self.speciatePopulation()
 
-nn = Nodelution()
-nn.setup()
+            self.adjustFitness()
 
-for i in range(10000):
-    nn.mutateNodeAdd(nn.test)
-    nn.mutateLinkToggle(nn.test)
-    nn.mutateLinkShift(nn.test)
-    nn.mutateLinkRandom(nn.test)
-    # nn.mutateLinkAdd(nn.test)
+            self.killAgents()
+
+            self.produceNextGen()
+
+            self.mutatePopulation()
+            
+            self.scoreFitness()
+
+            print("{} gen={} fit={} pop={}".format(datetime.now().strftime("[%H:%M:%S]"), i, 0, len(self.agents)))
+
+    def initializePopulation(self) -> None:
+        print("Generating Initial Population")
+    
+    def scoreFitness(self) -> None:
+        print("Computing Fitness For All Agents")
+
+    def speciatePopulation(self) -> None:
+        print("Speciating Population")
+    
+    def adjustFitness(self) -> None:
+        print("Adjusting fitness")
+
+    def killAgents(self) -> None:
+        print("Kill weak agents")
+    
+    def produceNextGen(self) -> None:
+        print("Produce new generation")
+    
+    def mutatePopulation(self) -> None:
+        print("Apply mutations")
+
+DefaultSettings = {
+        "Input": 3,
+        "Output": 2,
+        "Generations": 1
+    }
+
+if __name__ == '__main__':
+    nn = Nodelution(DefaultSettings)
+    nn.setup()
+    nn.evolve(100)
 
 # print([node.disabled for node in nn.test.nodes.values()])
 # print(nn.test)
