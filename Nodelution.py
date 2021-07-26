@@ -2,10 +2,19 @@ import numpy as np
 from random import random, choice
 from enum import Enum
 from datetime import datetime
+from multipledispatch import dispatch
 
 # TODO: 
 # - Implement functions: (find: raise)
 # - Implement tests for functions
+# - Verify if we dont link nodes that dont exist
+
+class Link:
+    def __init__(self, src, to, weight=1.0, enabled=True) -> None:
+        self.src = src
+        self.to = to
+        self.weight = weight
+        self.enabled = enabled
 
 class NodeType(Enum):
     """A type is attributed to each node for easier filtering and to differentiate hidden nodes later.
@@ -29,21 +38,17 @@ class Node:
         __getitem__, __setitem__, __len__: Shortcut to self.inputs.
                                            Node[i] / len(Node) will act like Node.inputs[i] / len(Node.inputs).
     """
-    def __init__(self, id=0, type=NodeType.Hidden, inputs={}, fn=lambda x: x):
+    def __init__(self, id: int=0, type: NodeType=NodeType.Hidden, links=[], fn=lambda x: x):
         self.id = id # type: int
         self.type = type # type: NodeType
-        self.inputs = inputs # type: dict[int, float] # node_id: weight_value
-        self.disabled = [] # type: list[int]
-        self.fn = fn
+        self.links = links
+        self.fn = fn # type: function(float)
         
-    def __getitem__(self, key):
-        return self.inputs[key]
-    
-    def __setitem__(self, key, value):
-        self.inputs[key] = value
-    
-    def __len__(self):
-        return len(self.inputs)
+    def getLinkFrom(self, src):
+        for link in self.links:
+            if link.src == src:
+                return link
+        return None
 
 class Agent:
     """Represent an individual of the population.
@@ -59,118 +64,93 @@ class Agent:
     """
     def __init__(self):
         self.nodes = {} # type: dict[int, Node]
+        self.active_links = []
+        self.inactive_links = []
         
-    def addNode(self, node):
+    def addNode(self, node: Node):
         self.nodes[node.id] = node
+        for link in node.links:
+            if link.enabled:
+                self.active_links.append(link)
+            else:
+                self.inactive_links.append(link)
+
+    @dispatch(Link)
+    def addLink(self, link):
+        if link.enabled:
+            self.active_links.append(link)
+        else:
+            self.inactive_links.append(link)
+        self.nodes[link.to].links.append(link)
     
-    def __str__(self):
-        string = ""
-        for node in self.nodes.values():
-            string += "{}: {}\n".format(node.id, ",".join(map(str,node.inputs)))
-        return string
+    @dispatch(int, int, weight=float, enabled=bool)
+    def addLink(self, src, to, weight=1.0, enabled=True):
+        self.addLink(Link(src, to, weight, enabled))
         
 
 class Nodelution:
     def __init__(self, settings):
         self.agents = [] # type: list[Agent]
-        self.test = None
         self.inputList = [i for i in range(1, settings["Input"]+1)] # type: list[int]
         self.outputList = [i for i in range(len(self.inputList)+1, len(self.inputList)+1+settings["Output"])] # type: list[int]
         self.nodeCount = len(self.inputList) + len(self.outputList) # type: int
 
     def setup(self):
-        agent = Agent()
-        
-        agent.addNode(Node(1, NodeType.Input))
-        agent.addNode(Node(2, NodeType.Input))
-        agent.addNode(Node(3, NodeType.Input))
-        
-        agent.addNode(Node(4, NodeType.Output, {1: 1, 2: 1, 3: 1}))
-        agent.addNode(Node(5, NodeType.Output, {1: 1, 2: 1, 3: 1}))
-        
-        self.test = agent
+        pass
     
-    # FIXME: Possible infinite loop stuck, could use some optimization as well. 
-    def getNodeWithLinks(self, agent, disabled=True) -> Node:
-        """Fetch randomly a node in an agent that has 1 or more links.
-        If the disabled flag is set to True, the node has to have active links (not all disabled).
-
-        Args:
-            agent (Agent): Agent to select the node from.
-            disabled (bool, optional): If True the node selected has to have at least 1 link enabled. Defaults to True.
-
-        Returns:
-            Node: The randomly selected node
-        """
-        while True:
-            node = choice(list(agent.nodes.values()))
-            if len(node.inputs) > 0:
-                if not disabled:
-                    if len(node.inputs) == len(node.disabled):
-                        continue
-                break
-        return node
-    
-    def mutateLinkAdd(self, agent, percent=1) -> None:
+    def mutateLinkAdd(self, agent: Agent, percent=1):
         if random() > percent:
             return
         
-        node_id = choice([id for id in agent.nodes if id not in self.InputList])
-        if len(agent.nodes[node_id]) >= len(agent.nodes)-1:
+        node_id = choice([id for id in agent.nodes if id not in self.inputList])
+        if len(agent.nodes[node_id].links) >= len(agent.nodes)-1:
             print("Can't add a link here mate.")
             return
         
         # All nodes except inputs and the node that own the links
-        target_nodes = [id for id in agent.nodes if id not in list(agent.nodes[node_id].inputs) + [node_id]]
+        target_nodes = []
+        for target_id in agent.nodes:
+            if target_id != node_id and agent.nodes[node_id].getLinkFrom(target_id) == None:
+                target_nodes.append(target_id)
 
         target_link = choice(target_nodes)
         
-        agent.nodes[node_id][target_link] = 1.0
-    
-    def mutateLinkShift(self, agent, percent=1, shift=0.2) -> None:        
-        if random() > percent:
-            return
-        
-        node = self.getNodeWithLinks(agent, False)
-        
-        node[choice(list(node.inputs))] += random()*shift*2 -shift
-        
-    def mutateLinkRandom(self, agent, percent=1) -> None:        
-        if random() > percent:
-            return
-        
-        node = self.getNodeWithLinks(agent, False)
-        
-        node[choice(list(node.inputs))] = random()*2 -1
-    
-    def mutateLinkToggle(self, agent, percent=1) -> None:           
-        if random() > percent:
-            return
-        
-        node = self.getNodeWithLinks(agent)
+        agent.addLink(target_link, node_id)
 
-        
-        link_id = choice(list(node.inputs.keys()))
-        if link_id in node.disabled:
-            node.disabled.remove(link_id)
-        else:
-            node.disabled.append(link_id)
+        return (node_id, target_link)
     
-    def mutateNodeAdd(self, agent, percent=1) -> None:
+    def mutateLinkShift(self, agent: Agent, percent=1, shift=0.2) -> None:        
         if random() > percent:
             return
         
-        node = self.getNodeWithLinks(agent, False)
+        choice(agent.active_links).weight += random()*shift*2 -shift
         
-        enabled_links = [link for link in node.inputs if link not in node.disabled]
+    def mutateLinkRandom(self, agent: Agent, percent=1) -> None:        
+        if random() > percent:
+            return
         
-        link_id = choice(enabled_links)
-        node.disabled.append(link_id)
+        choice(agent.active_links).weight = random()*2 -1
+    
+    def mutateLinkToggle(self, agent: Agent, percent=1) -> None:           
+        if random() > percent:
+            return
         
-        self.NodeCount += 1
+        link = choice(agent.active_links + agent.inactive_links)
+        link.enabled = not link.enabled
+
+        if link.enabled:
+            agent.inactive_links.remove(link)
+            agent.active_links.append(link)
+        else:
+            agent.active_links.remove(link)
+            agent.inactive_links.append(link)
+    
+    def mutateNodeAdd(self, agent: Agent, percent=1) -> None:
+        if random() > percent:
+            return
         
-        agent.addNode(Node(self.NodeCount, NodeType.Hidden, {link_id : 1}))
-        node[self.NodeCount] = node[link_id]
+    def mutateNodePop(self, agent: Agent, percent=1) -> None:
+        raise Exception("Not implemented func.")
     
     def mutateNodeToggle(self, agent, percent=1) -> None:
         raise Exception("Not implemented func.")
@@ -230,8 +210,7 @@ DefaultSettings = {
 
 if __name__ == '__main__':
     nn = Nodelution(DefaultSettings)
-    nn.setup()
-    nn.evolve(100)
+    # nn.evolve(100)
 
 # print([node.disabled for node in nn.test.nodes.values()])
 # print(nn.test)

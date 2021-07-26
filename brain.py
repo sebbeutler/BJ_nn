@@ -88,7 +88,7 @@ class Brain(object):
                 neuron.update(previous_layer)
             previous_layer = layer
         
-    def learn(self, data, n=10000):
+    def learn(self, data, n=100000):
         for i in range(n):
             np.random.shuffle(data)
             for inputs, expected in data:
