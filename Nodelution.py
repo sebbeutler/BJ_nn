@@ -3,9 +3,11 @@ from random import random, choice
 from enum import Enum
 from datetime import datetime
 from multipledispatch import dispatch
-from itertools import zip_longest
 import math
-from cluster import KMeansClustering
+import matplotlib.pyplot as plt
+import networkx as nx
+import matplotlib
+
 
 # TODO: 
 # - Implement functions: (find: raise)
@@ -18,6 +20,9 @@ class Link:
         self.to = to
         self.weight = weight
         self.enabled = enabled
+    
+    def __str__(self) -> str:
+        return "({}, {}): {}".format(self.src, self.to, self.weight)
 
 class NodeType(Enum):
     """A type is attributed to each node for easier filtering and to differentiate hidden nodes later.
@@ -34,6 +39,7 @@ class Node:
         self.fn = fn # type: function(float)
         self.value = None # type: float
         self.buffer_value = None # type: float
+        self.layer = None
         
     def getLinkFrom(self, src: int) -> Link:
         for link in self.links:
@@ -347,50 +353,93 @@ class Nodelution:
             self.mutateLinkShift(agent, self.settings["mLinkShift"])
             self.mutateLinkToggle(agent, self.settings["mLinkToggle"])
             self.mutateNodeAdd(agent, self.settings["mNodeAdd"])
-            
+
+def plot_agent(agent):
+    G = nx.DiGraph()
+    
+    def rec_layer(agent, nodes, layer_id):
+        next_nodes = set()
+        for node in nodes:
+            node.layer = layer_id
+            for link in node.links:
+                if node.layer != None:
+                    next_nodes.add(agent.nodes[link.src])
+        if len(next_nodes) == 0:
+            return
+        rec_layer(agent, next_nodes, layer_id-1)
+    
+    rec_layer(agent, [agent.nodes[id] for id in nn.outputList], 100)
+
+    first_layer = 100
+    for node in agent.nodes.values():
+        if node.layer < first_layer:
+            first_layer = node.layer
+    
+    for node in agent.nodes.values():
+        if node.type == NodeType.Input:
+            node.layer = first_layer - 1
+        elif node.type == NodeType.Output:
+            node.layer = 100
+    
+    for node in agent.nodes.values():
+        G.add_node(node.id, layer=node.layer)
+    
+    for link in agent.active_links:
+        G.add_edge(link.src, link.to)
+
+    pos = nx.multipartite_layout(G, subset_key="layer")
+
+    nx.draw(G, pos, with_labels=True)
+    
+    plt.get_current_fig_manager().window.SetPosition((1200, 200))
+    plt.show()
+    plt.pause(0.001)
 
 DefaultSettings = {
-        "Input": 2,
-        "Output": 1,
+        "Input": 3,
+        "Output": 2,
         "Generations": 1,
         "Population_Size": 50,
         "Species": 8,
         "Distance_Treshold": 0.0,
         
+        "mLinkRandom": 0.988,
+        "mLinkShift": 0.0988,
         "mLinkAdd": 0.01,
-        "mLinkRandom": 0.01,
-        "mLinkShift": 0.01,
-        "mLinkToggle": 0.01,
+        "mLinkToggle": 0.001,
         "mNodeAdd": 0.01,
     }
 
-if __name__ == '__main__':
+def graph_mutations(agent):
+    matplotlib.use("wx")
+    plt.ion()
+    plt.show()
+    
+    plot_agent(agent)
+    
+    while True:
+        print("1: LinkAdd | 2: LinkRandom | 3: LinkShift | 4: LinkToggle | 5: NodeAdd | 0:exit")
+        x = int(input("choice:"))
+        plt.close()
+        
+        if x == 1:
+            nn.mutateLinkAdd(agent)
+        elif x == 2:
+            nn.mutateLinkRandom(agent)
+        elif x == 3:
+            nn.mutateLinkShift(agent)
+        elif x == 4:
+            nn.mutateLinkToggle(agent)
+        elif x == 5:
+            nn.mutateNodeAdd(agent)
+        elif x == 0:
+            break
+        
+        plot_agent(agent)
+
+if __name__ == '__main__':    
     nn = Nodelution(DefaultSettings)
-    nn.evolve(100)
-    ()
-
-# print([node.disabled for node in nn.test.nodes.values()])
-# print(nn.test)
-
-# import itertools
-# import matplotlib.pyplot as plt
-# import networkx as nx
-# from networkx.drawing.nx_agraph import graphviz_layout
-
-# G = nx.DiGraph()
-
-# G.add_node(1, layer=0)
-# G.add_node(2, layer=0)
-# G.add_node(3, layer=0)
-# G.add_node(4, layer=1)
-# G.add_node(5, layer=1)
-
-# for node in nn.test.nodes.values():
-#     G.add_node(node.id)
-#     for link in node.inputs.keys():
-#         G.add_edge(link, node.id)
-
-# pos = nx.multipartite_layout(G, subset_key="layer")
-
-# nx.draw(G, pos, with_labels=True)
-# plt.show()
+    
+    agent = nn.createAgent()
+    # graph_mutations(agent)
+    
