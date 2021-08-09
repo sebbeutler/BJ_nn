@@ -1,5 +1,5 @@
 import numpy as np
-from random import random, choice
+from random import randint, random, choice
 from enum import Enum
 from datetime import datetime
 from multipledispatch import dispatch
@@ -21,6 +21,9 @@ class Link:
         self.weight = weight
         self.enabled = enabled
     
+    def copy(self):
+        return Link(self.src, self.to, self.weight, self.enabled)
+    
     def __str__(self) -> str:
         return "({}, {}): {}".format(self.src, self.to, self.weight)
 
@@ -32,11 +35,22 @@ class NodeType(Enum):
     Hidden = 4
 
 class Node:
-    def __init__(self, id: int=0, type: NodeType=NodeType.Hidden, links=None, fn=lambda x: 2 / (1+math.exp(-2*x)) -1):
+    def tanh(x):
+        return 2 / (1+math.exp(-2*x)) -1
+
+    def leakyReLu(x):
+        a = 0.001
+        
+        if x > 0.0:
+            return x
+        else:
+            return x*a
+    
+    def __init__(self, id: int=0, type: NodeType=NodeType.Hidden, links=None):
         self.id = id # type: int
         self.type = type # type: NodeType
         self.links = links if links != None else [] # type: list[Link]
-        self.fn = fn # type: function(float)
+        self.fn = Node.leakyReLu # type: function(float)
         self.value = None # type: float
         self.buffer_value = None # type: float
         self.layer = None
@@ -49,44 +63,38 @@ class Node:
     
     def activate(self):
         self.value = self.fn(self.buffer_value)
+        
+    def randomLink(self):
+        if len(self.links)==0:
+            return None
+        return self.links[randint(0, len(self.links)-1)]
 
 class Agent:
     def __init__(self):
         self.nodes = {} # type: dict[int, Node]
-        self.active_links = [] # type: list[Link]
-        self.inactive_links = [] # type: list[Link]
         self.fitness = 0.0 # type: float
-        
+
     def addNode(self, node: Node):
         self.nodes[node.id] = node
-        for link in node.links:
-            if link.enabled:
-                self.active_links.append(link)
-            else:
-                self.inactive_links.append(link)
 
-    @dispatch(Link)
     def addLink(self, link):
-        if link.enabled:
-            self.active_links.append(link)
-        else:
-            self.inactive_links.append(link)
         if link.to not in self.nodes.keys():
             self.nodes[link.to] = Node(link.to)
-        self.nodes[link.to].links.append(link)
+        self.nodes[link.to].links.append(link.copy())
     
-    @dispatch(int, int, weight=float, enabled=bool)
-    def addLink(self, src, to, weight=1.0, enabled=True):
-        self.addLink(Link(src, to, weight, enabled))
+    def randomNode(self):
+        return list(self.nodes.values())[randint(0, len(self.nodes.values())-1)]
     
-    def toggleLink(self, link: Link):
-        link.enabled = not link.enabled
-        if link.enabled:
-            self.inactive_links.remove(link)
-            self.active_links.append(link)
-        else:
-            self.active_links.remove(link)
-            self.inactive_links.append(link)
+    def clean(self):
+        for node in self.nodes.values():
+            node.value = None
+            node.buffer_value = None
+    
+    def getLink(self, src, to):
+        for link in self.nodes[to].links:
+            if link.src == src and link.to == to:
+                return link
+        return None
         
 class Specie:
     def __init__(self, id: int):
@@ -109,6 +117,7 @@ class Nodelution:
         self.link_history = {} # type: dict[tuple, int]
         self.species = [] # type: list[Specie]
         self.maxFitness = 0.0 # type: float
+        self.topAgent = None # type: Agent
         
     def reset(self):
         self.__init__(self.settings)
@@ -119,7 +128,6 @@ class Nodelution:
         
         node_id = choice([id for id in agent.nodes if id not in self.inputList])
         if len(agent.nodes[node_id].links) >= len(agent.nodes)-1:
-            print("Can't add a link here mate.")
             return
         
         # All nodes except inputs and the node that own the links
@@ -130,38 +138,47 @@ class Nodelution:
 
         target_link = choice(target_nodes)
         
-        agent.addLink(target_link, node_id)
+        agent.nodes[node_id].links.append(Link(target_link, node_id))
 
         return (node_id, target_link)
     
     # TODO: don't shift >-1 / <1
     def mutateLinkShift(self, agent: Agent, percent=1, shift=0.2) -> None:
-        if random() > percent or len(agent.active_links) == 0:
+        if random() > percent:
             return
         
-        choice(agent.active_links).weight += random()*shift*2 -shift
+        link = agent.randomNode().randomLink()
+        if link == None:
+            return
+        link.weight += min(max(random()/shift*2 -shift, 0),1)
     
     def mutateLinkRandom(self, agent: Agent, percent=1) -> None:
-        if random() > percent or len(agent.active_links) == 0:
+        if random() > percent:
             return
-        
-        choice(agent.active_links).weight = random()*2 -1
+        link = agent.randomNode().randomLink()
+        if link == None:
+            return
+        link.weight = random()
     
     def mutateLinkToggle(self, agent: Agent, percent=1) -> None:
-        if random() > percent or len(agent.active_links) == 0:
+        if random() > percent:
             return
         
-        link = choice(agent.active_links + agent.inactive_links)
-        
-        agent.toggleLink(link)
+        link = agent.randomNode().randomLink()
+        if link == None:
+            return
+        link.weight = not link.enabled
     
     def mutateNodeAdd(self, agent: Agent, percent=1) -> None:
-        if random() > percent or len(agent.active_links) == 0:
+        if random() > percent:
             return
         
-        link = choice(agent.active_links)
+        link = agent.randomNode().randomLink()
         
-        agent.toggleLink(link)
+        if link == None or link.enabled == False:
+            return
+        
+        link.enabled = False
         
         def quick_inc(obj, name):
             setattr(obj, name, getattr(obj, name)+1)
@@ -188,26 +205,31 @@ class Nodelution:
         matching_links = 0
         
         weight_diff = 0.0
-        
-        links1 = [(link.src, link.to) for link in agent1.active_links + agent1.inactive_links]
-        links2 = [(link.src, link.to) for link in agent2.active_links + agent2.inactive_links]
-        
-        for link in links1:
-            if link in links2:
-                matching_links += 1
-                weight_diff += abs(agent1.nodes[link[1]].getLinkFrom(link[0]).weight - agent2.nodes[link[1]].getLinkFrom(link[0]).weight) 
          
         
         for node in agent1.nodes.values():
             if node.id in [n.id for n in agent2.nodes.values()]:
                 matching_nodes += 1
+                for link in node.links:
+                    if agent2.nodes[link.to].getLinkFrom(link.src) != None:
+                        matching_links += 1
+                        weight_diff += abs(link.weight - agent2.getLink(link.src, link.to).weight)
+                        
         
         try:
             weight_diff /= matching_links
         except ZeroDivisionError:
             weight_diff = 0.0
         
-        disjoint_links = len(agent1.active_links + agent1.inactive_links) + len(agent2.active_links + agent2.inactive_links) - 2 * matching_links
+        link_count1 = 0
+        for n in agent1.nodes.values():
+            link_count1 += len(n.links)
+            
+        link_count2 = 0
+        for n in agent2.nodes.values():
+            link_count2 += len(n.links)   
+        
+        disjoint_links = link_count1 + link_count2 - 2 * matching_links
         total_links = matching_links + disjoint_links
         
         disjoint_nodes = len(agent1.nodes.values()) + len(agent2.nodes.values()) - 2 * matching_nodes
@@ -221,7 +243,13 @@ class Nodelution:
     def progenerate(self, agent1: Agent, agent2: Agent) -> Agent:
         child = Agent()
         
-        for link in agent1.active_links + agent2.active_links + agent1.inactive_links + agent2.inactive_links:
+        links = []
+        for agent in [agent1, agent2]:
+            for node in agent.nodes.values():
+                for link in node.links:
+                    links.append(link)
+        
+        for link in links:
             if link.to in child.nodes.keys() and child.nodes[link.to].getLinkFrom(link.src) != None:
                 child.nodes[link.to].getLinkFrom(link.src).weight = (child.nodes[link.to].getLinkFrom(link.src).weight + link.weight) / 2
             else:
@@ -229,7 +257,7 @@ class Nodelution:
                 
         for node in list(agent1.nodes.values()) + list(agent2.nodes.values()):
             if node.id not in child.nodes and len(node.links) == 0:
-                child.addNode(Node(node.id))
+                child.addNode(Node(node.id, node.type))
         
         return child
 
@@ -248,7 +276,7 @@ class Nodelution:
             
             self.scoreFitness()
 
-            print("{} gen={} fit={} pop={}".format(datetime.now().strftime("[%H:%M:%S]"), i, self.maxFitness, len(self.agents)))
+            print("{} gen={} fit={} pop={} sp={}".format(datetime.now().strftime("[%H:%M:%S]"), i, self.maxFitness, len(self.agents), len(self.species)))
 
     def initializePopulation(self) -> None:
         for i in range(self.settings["Population_Size"]):
@@ -265,10 +293,11 @@ class Nodelution:
         if not empty:
             for i in self.inputList:
                 for o in self.outputList:
-                    agent.addLink(i,o)
+                    agent.addLink(Link(i,o, random()*2-1))
         return agent
         
     def evalAgent(self, agent: Agent, input_data: list[float]) -> list[float]:
+        agent.clean()
         for i in range(len(self.inputList)):
             agent.nodes[self.inputList[i]].value = input_data[i]
         
@@ -290,7 +319,38 @@ class Nodelution:
         return [agent.nodes[n].value for n in self.outputList]
 
     def scoreFitness(self) -> None:
-        print("Computing Fitness For All Agents")
+        for agent in self.agents:
+            agent.fitness = self.fitnessEval(agent)
+            
+            if agent.fitness > self.maxFitness:
+                self.maxFitness = agent.fitness
+                self.topAgent = agent
+            
+    def fitnessEval(self, agent):
+        fitness = 0.0
+        sucess = True
+        
+        output =  self.evalAgent(agent, [0,0])[0]
+        sucess &= output <= 0.5
+        fitness += 1.0 - output**2
+        
+        output =  self.evalAgent(agent, [1.0,1.0])[0]
+        sucess &= output <= 0.5
+        fitness += 1.0 - output**2
+        
+        output =  self.evalAgent(agent, [0,1.0])[0]
+        sucess &= output > 0.5
+        fitness += 1.0 - (1.0 - output)**2
+        
+        output =  self.evalAgent(agent, [1.0,0])[0]
+        sucess &= output > 0.5
+        fitness += 1.0 - (1.0 - output)**2
+        
+        if sucess:
+            fitness += 10
+        
+        return fitness
+                
 
     def speciatePopulation(self) -> None:
         self.species = []
@@ -316,9 +376,7 @@ class Nodelution:
     def killAgents(self) -> None:
         self.species.sort(key=lambda x: -x.fitness)
         
-        selected_species = []
-        for i in range(self.settings["Species"]):
-            selected_species.append(self.species[i])
+        selected_species = self.species[:self.settings["Species"]]
         
         for specie in selected_species:
             specie.agents.sort(key=lambda x: -x.fitness)
@@ -396,12 +454,12 @@ def plot_agent(agent):
     plt.pause(0.001)
 
 DefaultSettings = {
-        "Input": 3,
-        "Output": 2,
+        "Input": 2,
+        "Output": 1,
         "Generations": 1,
-        "Population_Size": 50,
-        "Species": 8,
-        "Distance_Treshold": 0.0,
+        "Population_Size": 200,
+        "Species": 15,
+        "Distance_Treshold": 0.7,
         
         "mLinkRandom": 0.988,
         "mLinkShift": 0.0988,
@@ -440,6 +498,16 @@ def graph_mutations(agent):
 if __name__ == '__main__':    
     nn = Nodelution(DefaultSettings)
     
-    agent = nn.createAgent()
+    nn.evolve(100)
+    
+    nn.fitnessEval(nn.topAgent)
+    
+    print(nn.evalAgent(nn.topAgent, [0,0])[0]) # 0
+    print(nn.evalAgent(nn.topAgent, [1,1])[0]) # 0
+    
+    print(nn.evalAgent(nn.topAgent, [1,0])[0]) # 1
+    print(nn.evalAgent(nn.topAgent, [0,1])[0]) # 1
+    
+    # agent = nn.createAgent()
     # graph_mutations(agent)
     

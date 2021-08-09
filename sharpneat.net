@@ -1,0 +1,44 @@
+[
+    {
+        "src": 1,
+        "to": 4,
+        "weight": -0.08,
+        "enabled": true,
+        "id": 1
+    },
+    {
+        "src": 2,
+        "to": 4,
+        "weight": -2.73,
+        "enabled": true,
+        "id": 2
+    },
+    {
+        "src": 2,
+        "to": 6,
+        "weight": 1.17,
+        "enabled": true,
+        "id": 3
+    },
+    {
+        "src": 3,
+        "to": 4,
+        "weight": 1.31,
+        "enabled": true,
+        "id": 4
+    },
+    {
+        "src": 3,
+        "to": 6,
+        "weight": -2.36,
+        "enabled": true,
+        "id": 5
+    },
+    {
+        "src": 6,
+        "to": 4,
+        "weight": 4.77894,
+        "enabled": true,
+        "id": 6
+    }
+]

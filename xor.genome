@@ -1,0 +1,16 @@
+# Input and output node counts.
+3	1
+
+# Connections (source target weight).
+0	3	0.4383904385999388
+0	5	-4.019118198224938
+0	6	2.3358775419857136
+1	6	-1.9366869617355615
+2	6	-1.726154208692247
+5	3	-2.7081481054725214
+6	3	1.2494735329090296
+6	5	5.643085924242215
+
+# Activation functions (functionId functionCode).
+0	LeakyReLU
+

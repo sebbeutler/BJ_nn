@@ -1,9 +1,131 @@
-# import tensorflow as tf
-# from tensorflow.keras.models import Sequential  
-# from tensorflow.keras.layers import *
-import numpy as np  
-# from tensorflow.keras.models import Sequential
-# from tensorflow.keras.optimizers import SGD
+from nn.nn import NN
+from nn.Utils import *
+import matplotlib.pyplot as plt
+import random
+import numpy as np
+
+
+XORSettings = {
+    "Input": 5,
+    "Output": 4,
+    "Generations": 1,
+    "Population_Size": 150,
+    "Distance_Treshold": 0.8,
+    
+    "mGeneRandom": 0.7,
+    "mGeneShift": 0.94,
+    "mGeneAdd": 0.01,
+    "mGeneToggle": 0.001,
+    "mNodeAdd": 0.001,
+}
+
+def main():
+    nn = NN(XORSettings)
+    
+    data = [
+        ([1,0,0], 0),
+        ([1,1,1], 0),
+        ([1,1,0], 1),
+        ([1,0,1], 1)
+    ]
+    
+    # data = [
+    #     [[1,0,0,0], 1],
+    #     [[1,0,0,1], 1],
+    #     [[1,0,1,0], 1],
+    #     [[1,0,1,1], 1],
+    #     [[1,1,0,0], 0],
+    #     [[1,1,0,1], 0],
+    #     [[1,1,1,0], 0],
+    #     [[1,1,1,1], 1]
+    # ]
+    
+    data = [
+        [[1, 3, 1, 4, 4, ]   ,    [0, 1, 0, 0, ]],
+        [[1, 3, 2, 5, 4, ]   ,    [0, 1, 0, 0, ]],
+        [[1, 3, 3, 6, 4, ]   ,    [0, 0, 1, 0, ]],
+        [[1, 3, 4, 7, 4, ]   ,    [0, 1, 0, 0, ]],
+        [[1, 3, 5, 8, 4, ]   ,    [0, 1, 0, 0, ]],
+        [[1, 3, 6, 9, 4, ]   ,    [0, 0, 0, 1, ]]
+    ]
+    
+    # nn.evolve(98.5, data, gtEval, plot=True)
+    # save_agent(nn.topAgent, 'gt.net')
+    
+    
+    a = load_sharp_agent('blackjack.genome')
+    print(bjEval(a))
+    plot_agent(nn, a)
+    
+    # for d in data:
+        # print(evalAgent(a, d[0]))
+    
+    # print(evalAgent(nn.topAgent, [1, 1, 0]))
+    # print(evalAgent(nn.topAgent, [1, 0, 1]))
+    # print(evalAgent(nn.topAgent, [1, 0.5, 0.7]))
+    # print(evalAgent(nn.topAgent, [1, 0.7, 0.5]))
+    # print(evalAgent(nn.topAgent, [1, 0.3, 0.5]))
+    # print(evalAgent(nn.topAgent, [1, 0.5, 0.3]))
+    
+    plt.pause(300000) 
+          
+def bjEval(agent):
+    fitness = 0.0
+    sucess = True
+    
+    target_n = 0
+    other_act = False
+    
+    for j in range(len(X)):
+        output =  evalAgent(agent, [1] + X[j], 4)
+        for i in range(len(output)):
+            if y[j][i] != 1 and output[i] >= 0.5:
+                other_act = True
+            elif y[j][i] == 1:
+                target_n = output[i]
+        
+        fitness += 1.0 - (1-np.clip(target_n, 0, 1))**2
+    
+    
+    return fitness
+
+def xorEval(agent, data):
+    fitness = 0.0
+    sucess = True
+    
+    for item in data:
+        output =  evalAgent(agent, item[0])[0]
+        if item[1] <= 0.5:
+            sucess &= output <= 0.5
+            fitness += 1.0 - output**2
+        elif item[1] > 0.5:
+            sucess &= output > 0.5
+            fitness += 1.0 - (1-output)**2
+    
+    if sucess:
+        fitness += 10
+    
+    return fitness
+
+def gtEval(agent, data):
+    fitness = 0.0
+    sucess = True
+    
+    for i in range(100):
+        a = random()
+        b = random()
+        output = evalAgent(agent, [1,a,b], 4)[0]
+        if a <= b:
+            sucess &= output <= 0.5
+            fitness += 1.0 - output**2
+        elif a > b:
+            sucess &= output > 0.5
+            fitness += 1.0 - (1-output)**2
+    
+    if sucess:
+        fitness += 100
+        
+    return fitness
 
 X = []
 y = []
@@ -84,7 +206,7 @@ for row in range(1,11):
                     y.append([0,0,0,1])
                 else:
                     y.append([0,1,0,0])
-            elif c1+c2 == 11 and not (c1 == 1 and c2 == 1):
+            elif c1+c2 == 11:
                 if 2 <= row <= 9:
                     y.append([0,0,0,1])
                 else:
@@ -117,20 +239,5 @@ for row in range(1,11):
             elif c1+c2 >= 17:
                 y.append([1,0,0,0])
 
-
-X = np.array(X)
-y = np.array(y)
-
-print(X)
-print(y)
-input()
-# model = Sequential()
-# model.add(Dense(8, input_shape=(4,), activation='sigmoid'))
-# model.add(Dense(8, activation='sigmoid'))
-# model.add(Dense(4, activation='sigmoid'))
-
-# opt = SGD(learning_rate=0.1)
-# model.compile(optimizer=opt, loss='binary_crossentropy', metrics=['accuracy'])
-
-# model.fit(X, y, batch_size=1, epochs=5000, use_multiprocessing=True)
-# print(model.predict(X))
+if __name__ == '__main__':
+    main()

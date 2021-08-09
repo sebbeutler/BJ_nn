@@ -10,10 +10,10 @@ class Test_Nodelution:
         "Species": 8,
         "Distance_Treshold": 0.0,
         
+        "mLinkRandom": 0.988,
+        "mLinkShift": 0.0988,
         "mLinkAdd": 0.01,
-        "mLinkRandom": 0.01,
-        "mLinkShift": 0.01,
-        "mLinkToggle": 0.01,
+        "mLinkToggle": 0.001,
         "mNodeAdd": 0.01,
     })
 
@@ -152,6 +152,28 @@ class Test_Nodelution:
         assert len(child.nodes) == 6
         assert len(child.active_links) == 2
         assert child.nodes[4].getLinkFrom(1).weight == 0.5
+        
+        for i in range(500):        
+            self.nn.mutateLinkAdd(agent1, self.nn.settings["mLinkAdd"])
+            self.nn.mutateLinkRandom(agent1, self.nn.settings["mLinkRandom"])
+            self.nn.mutateLinkShift(agent1, self.nn.settings["mLinkShift"])
+            self.nn.mutateLinkToggle(agent1, self.nn.settings["mLinkToggle"])
+            self.nn.mutateNodeAdd(agent1, self.nn.settings["mNodeAdd"])
+            
+            self.nn.mutateLinkAdd(agent2, self.nn.settings["mLinkAdd"])
+            self.nn.mutateLinkRandom(agent2, self.nn.settings["mLinkRandom"])
+            self.nn.mutateLinkShift(agent2, self.nn.settings["mLinkShift"])
+            self.nn.mutateLinkToggle(agent2, self.nn.settings["mLinkToggle"])
+            self.nn.mutateNodeAdd(agent2, self.nn.settings["mNodeAdd"])
+        
+            agent1 = self.nn.progenerate(agent1, agent2)
+        
+        link_count = 0
+        for node in child.nodes.values():
+            link_count += len(node.links)
+        
+        assert link_count == len(child.active_links) + len(child.inactive_links)
+        
     
     def test_initializePopulation(self):
         self.nn.reset()
