@@ -6,8 +6,8 @@ import numpy as np
 
 
 XORSettings = {
-    "Input": 5,
-    "Output": 4,
+    "Input": 3,
+    "Output": 1,
     "Generations": 1,
     "Population_Size": 150,
     "Distance_Treshold": 0.8,
@@ -40,22 +40,22 @@ def main():
     #     [[1,1,1,1], 1]
     # ]
     
-    data = [
-        [[1, 3, 1, 4, 4, ]   ,    [0, 1, 0, 0, ]],
-        [[1, 3, 2, 5, 4, ]   ,    [0, 1, 0, 0, ]],
-        [[1, 3, 3, 6, 4, ]   ,    [0, 0, 1, 0, ]],
-        [[1, 3, 4, 7, 4, ]   ,    [0, 1, 0, 0, ]],
-        [[1, 3, 5, 8, 4, ]   ,    [0, 1, 0, 0, ]],
-        [[1, 3, 6, 9, 4, ]   ,    [0, 0, 0, 1, ]]
-    ]
+    # data = [
+    #     [[1, 3, 1, 4, 4, ]   ,    [0, 1, 0, 0, ]],
+    #     [[1, 3, 2, 5, 4, ]   ,    [0, 1, 0, 0, ]],
+    #     [[1, 3, 3, 6, 4, ]   ,    [0, 0, 1, 0, ]],
+    #     [[1, 3, 4, 7, 4, ]   ,    [0, 1, 0, 0, ]],
+    #     [[1, 3, 5, 8, 4, ]   ,    [0, 1, 0, 0, ]],
+    #     [[1, 3, 6, 9, 4, ]   ,    [0, 0, 0, 1, ]]
+    # ]
     
-    # nn.evolve(98.5, data, gtEval, plot=True)
+    nn.evolve(13, data, xorEval, plot=True)
     # save_agent(nn.topAgent, 'gt.net')
     
     
-    a = load_sharp_agent('blackjack.genome')
-    print(bjEval(a))
-    plot_agent(nn, a)
+    # a = load_sharp_agent('blackjack.genome')
+    # print(bjEval(a))
+    # plot_agent(nn, a)
     
     # for d in data:
         # print(evalAgent(a, d[0]))

@@ -121,6 +121,9 @@ class NN:
             print("{} gen={} fit={} pop={} sp={}".format(datetime.now().strftime("[%H:%M:%S]"), i, self.maxFitness, len(self.agents), len(self.species)))
             i += 1
             
+            print(len(self.topAgent.genes))
+            print(len(self.topAgent.nodes))
+            
             if plot:
                 fitnessHistory.append(self.maxFitness)
                 plt.xlim(0, 300)
